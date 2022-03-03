@@ -1,8 +1,33 @@
 import numpy as np
 import cv2
 
+"""
+http://labs.eecs.tottori-u.ac.jp/sd/Member/oyamada/OpenCV/html/py_tutorials/py_video/py_lucas_kanade/py_lucas_kanade.html
+https://qiita.com/icoxfog417/items/357e6e495b7a40da14d8
+https://www.cresco.co.jp/blog/entry/16891/
+https://www.programcreek.com/python/example/89313/cv2.calcOpticalFlowFarneback
+https://stackoverflow.com/questions/41661517/drawing-results-of-calcopticalflowfarneback-in-opencv-without-loop
 
-def opt_flow(fname, \
+"""
+
+
+def draw_flow(img, flow, step=16):
+    h, w = img.shape[:2]
+    y, x = np.mgrid[step / 2:h:step, step / 2:w:step].reshape(2, -1).astype(int)
+    fx, fy = flow[y, x].T
+    lines = np.vstack([x, y, x + fx, y + fy]).T.reshape(-1, 2, 2)
+    lines = np.int32(lines + 0.5)
+    # vis = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    vis = img
+
+    cv2.polylines(vis, lines, 0, (0, 255, 0), thickness=4)
+    for (x1, y1), (x2, y2) in lines:
+        cv2.circle(vis, (x1, y1), 1, (0, 255, 0), -1)
+    
+    return vis
+
+
+def opticalflow_dense(fname, \
              pyr_scale, \
              levels, \
              winsize, \
@@ -35,7 +60,13 @@ def opt_flow(fname, \
 
             next = cv2.cvtColor(frame2,cv2.COLOR_BGR2GRAY)
             flow = cv2.calcOpticalFlowFarneback(prvs, next, None, pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags)
-            flow_list.append(flow.tolist())
+            
+            mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
+            flow_mag = np.asarray(mag)
+            flow_mag_sum = float(np.sum(flow_mag))
+            # print(flow_mag_sum, type(flow_mag_sum))
+            flow_list.append(flow_mag_sum)
+            
 
             # mag, ang = cv2.cartToPolar(flow[...,0], flow[...,1])
             # hsv[...,0] = ang*180/np.pi/2
@@ -57,7 +88,7 @@ def opt_flow(fname, \
         return flow_list
 
 
-def opt_flow_draw(fname, \
+def opticalflow_dense_draw(fname, \
                   fname_ex, \
                   pyr_scale, \
                   levels, \
@@ -65,9 +96,11 @@ def opt_flow_draw(fname, \
                   iterations, \
                   poly_n, \
                   poly_sigma, \
-                  flags):
+                  flags, \
+                  export='org+flow'):
         """
         """
+        
         
 
         cap = cv2.VideoCapture(fname)
@@ -79,7 +112,13 @@ def opt_flow_draw(fname, \
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-        writer = cv2.VideoWriter(fname_ex, fmt, fps, (width, height))
+        if export == 'org-flow':
+            writer = cv2.VideoWriter(fname_ex, fmt, fps, (width, 2*height))
+        elif export == 'org+flow':
+            writer = cv2.VideoWriter(fname_ex, fmt, fps, (width, height))
+        elif export == 'flow':
+            writer = cv2.VideoWriter(fname_ex, fmt, fps, (width, height))
+
 
         ret, frame1 = cap.read()
         prvs = cv2.cvtColor(frame1,cv2.COLOR_BGR2GRAY)
@@ -92,15 +131,29 @@ def opt_flow_draw(fname, \
             if ret == False:
                 break
 
-            next = cv2.cvtColor(frame2,cv2.COLOR_BGR2GRAY)
+            next = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
             flow = cv2.calcOpticalFlowFarneback(prvs, next, None, pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags)
             # flow_list.append(flow.tolist())
 
-            mag, ang = cv2.cartToPolar(flow[...,0], flow[...,1])
+            mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
             hsv[...,0] = ang*180/np.pi/2
-            hsv[...,2] = cv2.normalize(mag,None,0,255,cv2.NORM_MINMAX)
-            rgb = cv2.cvtColor(hsv,cv2.COLOR_HSV2BGR)
-            writer.write(rgb)
+            
+
+            if export == 'org-flow':
+                hsv[...,2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
+                rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+                rgb2 = cv2.vconcat([rgb, frame2])
+                writer.write(rgb2)
+
+            elif export == 'org+flow':
+                rgb2 = draw_flow(frame2, flow, step=32)
+                writer.write(rgb2)
+
+            elif export == 'flow':
+                hsv[...,2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
+                rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+                writer.write(rgb)
+                # writer.write(flow)
 
             # cv2.imshow('frame2',rgb)
             # k = cv2.waitKey(30) & 0xff
@@ -112,27 +165,15 @@ def opt_flow_draw(fname, \
             prvs = next
 
         cap.release()
-        writer.release()
+        if export in ['org-flow', 'org+flow', 'flow']:
+            writer.release()
+
         
 
 
 def lk_track(fpath, feature_params, lk_params):
 
     cap = cv2.VideoCapture(fpath)
-
-    # params for ShiTomasi corner detection
-    # feature_params = dict( maxCorners = 100,
-    #                     qualityLevel = 0.3,
-    #                     minDistance = 7,
-    #                     blockSize = 7 )
-
-    # # Parameters for lucas kanade optical flow
-    # lk_params = dict( winSize  = (15,15),
-    #                 maxLevel = 2,
-    #                 criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
-
-    # Create some random colors
-    # color = np.random.randint(0,255,(100,3))
 
     # Take first frame and find corners in it
     ret, old_frame = cap.read()
@@ -203,18 +244,8 @@ def lk_track_draw(fpath, fpath_ex, feature_params, lk_params):
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-    writer = cv2.VideoWriter(fpath_ex, fmt, fps, (width, height))
     
-    # params for ShiTomasi corner detection
-    # feature_params = dict( maxCorners = 100,
-    #                     qualityLevel = 0.3,
-    #                     minDistance = 7,
-    #                     blockSize = 7 )
-
-    # # Parameters for lucas kanade optical flow
-    # lk_params = dict( winSize  = (15,15),
-    #                 maxLevel = 2,
-    #                 criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
+    writer = cv2.VideoWriter(fpath_ex, fmt, fps, (width, height))
 
     # Create some random colors
     color = np.random.randint(0,255,(100,3))
@@ -228,10 +259,8 @@ def lk_track_draw(fpath, fpath_ex, feature_params, lk_params):
     mask = np.zeros_like(old_frame)
 
 
-    data = list()
+    # data = list()
     frame_id = 0
-
-
     while(1):
         ret, frame = cap.read()
         if ret == False:
@@ -241,6 +270,7 @@ def lk_track_draw(fpath, fpath_ex, feature_params, lk_params):
 
         # calculate optical flow
         p1, st, err = cv2.calcOpticalFlowPyrLK(old_gray, frame_gray, p0, None, **lk_params)
+        # print(err)
 
         # Select good points
         good_new = p1[st==1]
@@ -250,17 +280,17 @@ def lk_track_draw(fpath, fpath_ex, feature_params, lk_params):
             continue
         
         flow = good_new - good_old
-        data.append(dict(frame=frame_id, flow=flow.tolist(), 
-                            position=good_new.tolist()
-        ))
+        # data.append(dict(frame=frame_id, flow=flow.tolist(), 
+        #                     position=good_new.tolist()
+        # ))
 
 
         # draw the tracks
-        for i, (new,old) in enumerate(zip(good_new, good_old)):
+        for i, (new, old) in enumerate(zip(good_new, good_old)):
             a,b = new.ravel()
             c,d = old.ravel()
-            mask = cv2.line(mask, (a,b),(c,d), color[i].tolist(), 2)
-            frame = cv2.circle(frame,(a,b),5,color[i].tolist(),-1)
+            mask = cv2.line(mask, (int(a), int(b)),(int(c), int(d)), color[i].tolist(), 2)
+            frame = cv2.circle(frame, (int(a), int(b)), 5, color[i].tolist(),-1)
         img = cv2.add(frame, mask)
         writer.write(img)
 
