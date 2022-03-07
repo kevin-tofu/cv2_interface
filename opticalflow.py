@@ -105,7 +105,7 @@ def opticalflow_dense_image_draw_base(img_prev,\
         img_ret = draw_flow(img_next_gray, flow, step=32)
 
     elif export == 'flow':
-        hsv[...,2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
+        # hsv[...,2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
         img_ret = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
     else:
         img_ret = {}
@@ -248,7 +248,7 @@ def opticalflow_dense_draw(fname: str, \
                 writer.write(rgb2)
 
             elif export == 'flow':
-                hsv[..., 2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
+                # hsv[..., 2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
                 rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
                 writer.write(rgb)
                 # writer.write(flow)
