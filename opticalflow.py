@@ -11,6 +11,19 @@ https://stackoverflow.com/questions/41661517/drawing-results-of-calcopticalflowf
 """
 
 
+def get_keywords_opticalflow(**kwargs):
+
+        pyr_scale = kwargs['_pyr_scale']
+        levels = kwargs['_levels']
+        winsize = kwargs['_winsize']
+        iterations = kwargs['_iterations']
+        poly_n = kwargs['_poly_n']
+        poly_sigma = kwargs['_poly_sigma']
+        flags = kwargs['_flags']
+
+        return pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags
+
+
 def draw_flow(img, flow, step=16):
     h, w = img.shape[:2]
     y, x = np.mgrid[step / 2:h:step, step / 2:w:step].reshape(2, -1).astype(int)
@@ -27,17 +40,104 @@ def draw_flow(img, flow, step=16):
     return vis
 
 
-def opticalflow_dense(fname, \
-             pyr_scale, \
-             levels, \
-             winsize, \
-             iterations, \
-             poly_n, \
-             poly_sigma, \
-             flags):
+def opticalflow_dense_image_base(img_prev_gray,\
+                                 img_next_gray,\
+                                 **kwargs):
+    """
+    """
+    pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags = get_keywords_opticalflow(**kwargs)
+    flow = cv2.calcOpticalFlowFarneback(img_prev_gray, img_next_gray, \
+                                        None, pyr_scale, levels, winsize, \
+                                        iterations, poly_n, poly_sigma, flags)
+    
+    
+    # print(flow)
+    # flow = 0
+    return flow
+
+
+def opticalflow_dense_image(fpath_img_prev,\
+                            fpath_img_next,\
+                            **kwargs):
+    """
+    """
+
+    img_prev = cv2.imread(fpath_img_prev)
+    img_next = cv2.imread(fpath_img_next)
+
+    img_prev_gray = cv2.cvtColor(img_prev, cv2.COLOR_BGR2GRAY)
+    img_next_gray = cv2.cvtColor(img_next, cv2.COLOR_BGR2GRAY)
+    flow = opticalflow_dense_image_base(img_prev_gray,\
+                                        img_next_gray,\
+                                        **kwargs)
+    # flow_mag = np.asarray(mag)
+    flow_np = np.asarray(flow).tolist()
+
+    return flow_np
+
+
+
+def opticalflow_dense_image_draw_base(img_prev,\
+                                      img_next,\
+                                    #   export='org+flow',\
+                                      **kwargs):
+    """
+    """
+
+    export = kwargs['export']
+    img_prev_gray = cv2.cvtColor(img_prev, cv2.COLOR_BGR2GRAY)
+    img_next_gray = cv2.cvtColor(img_next, cv2.COLOR_BGR2GRAY)
+    flow = opticalflow_dense_image_base(img_prev_gray,\
+                                        img_next_gray,\
+                                        **kwargs)
+    hsv = np.zeros_like(img_next)
+
+    mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
+    hsv[...,0] = ang*180/np.pi/2
+    
+
+    if export == 'org-flow':
+        hsv[...,2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
+        rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+        img_ret = cv2.vconcat([rgb, img_next_gray])
+
+    elif export == 'org+flow':
+        img_ret = draw_flow(img_next_gray, flow, step=32)
+
+    elif export == 'flow':
+        hsv[...,2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
+        img_ret = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+    else:
+        img_ret = {}
+    
+    return img_ret
+
+
+def opticalflow_dense_image_draw(fpath_img_prev: str,\
+                                 fpath_img_next: str,\
+                                 fpath_ex: str, \
+                                 export: str,\
+                                 **kwargs):
+
+    # export = kwargs['export']
+    img_prev = cv2.imread(fpath_img_prev)
+    img_next = cv2.imread(fpath_img_next)
+    img_optflow = opticalflow_dense_image_draw_base(img_prev,\
+                                                    img_next,\
+                                                    export,\
+                                                    **kwargs)
+
+    
+    cv2.imwrite(fpath_ex, img_optflow)
+
+
+
+def opticalflow_dense_sum_video(fname, **kwargs):
         """
         """
-        
+        import math
+
+        pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags = get_keywords_opticalflow(**kwargs)
 
         cap = cv2.VideoCapture(fname)
         # pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags = 0.5, 3, 15, 3, 5, 1.2, 0
@@ -48,7 +148,7 @@ def opticalflow_dense(fname, \
 
 
         ret, frame1 = cap.read()
-        prvs = cv2.cvtColor(frame1,cv2.COLOR_BGR2GRAY)
+        prvs = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
         hsv = np.zeros_like(frame1)
         hsv[...,1] = 255
 
@@ -58,13 +158,16 @@ def opticalflow_dense(fname, \
             if ret == False:
                 break
 
-            next = cv2.cvtColor(frame2,cv2.COLOR_BGR2GRAY)
+            next = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
             flow = cv2.calcOpticalFlowFarneback(prvs, next, None, pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags)
             
             mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
             flow_mag = np.asarray(mag)
             flow_mag_sum = float(np.sum(flow_mag))
             # print(flow_mag_sum, type(flow_mag_sum))
+
+            if math.inf == flow_mag_sum:
+                flow_mag_sum = -1
             flow_list.append(flow_mag_sum)
             
 
@@ -88,20 +191,15 @@ def opticalflow_dense(fname, \
         return flow_list
 
 
-def opticalflow_dense_draw(fname, \
-                  fname_ex, \
-                  pyr_scale, \
-                  levels, \
-                  winsize, \
-                  iterations, \
-                  poly_n, \
-                  poly_sigma, \
-                  flags, \
-                  export='org+flow'):
+def opticalflow_dense_draw(fname: str, \
+                           fname_ex: str, \
+                           export: str, \
+                           **kwargs):
         """
         """
         
-        
+        pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags = get_keywords_opticalflow(**kwargs)
+        # export = kwargs['export']
 
         cap = cv2.VideoCapture(fname)
         k = cap.isOpened()
@@ -150,7 +248,7 @@ def opticalflow_dense_draw(fname, \
                 writer.write(rgb2)
 
             elif export == 'flow':
-                hsv[...,2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
+                hsv[..., 2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
                 rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
                 writer.write(rgb)
                 # writer.write(flow)
