@@ -24,6 +24,33 @@ def get_keywords_opticalflow(**kwargs):
         return pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags
 
 
+def get_keywords_lktrack(**kwargs):
+
+    max_corners = kwargs['_max_corners']
+    quality_level = kwargs['_quality_level']
+    min_distance = kwargs['_min_distance']
+    blocksize = kwargs['_blocksize']
+    win_size = kwargs['_win_size']
+    max_corners = kwargs['_max_corners']
+    max_level = kwargs['_max_level']
+    lk_criteria = kwargs['_lk_criteria']
+    lk_count = kwargs['_lk_count']
+    epsilon = kwargs['_epsilon']
+    # test = kwargs['test']
+    feature_params = dict(maxCorners=max_corners, 
+                            qualityLevel=quality_level,
+                            minDistance=min_distance,
+                            blockSize=blocksize
+                        )
+
+    lk_params = dict(winSize=(win_size, win_size), 
+                        maxLevel=max_level,
+                        criteria=(lk_criteria, lk_count, epsilon)
+                    )
+    return feature_params, lk_params
+
+
+
 def draw_flow(img, flow, step=16):
     h, w = img.shape[:2]
     y, x = np.mgrid[step / 2:h:step, step / 2:w:step].reshape(2, -1).astype(int)
@@ -269,8 +296,9 @@ def opticalflow_dense_draw(fname: str, \
         
 
 
-def lk_track(fpath, feature_params, lk_params):
+def lk_track(fpath, **kwargs):
 
+    feature_params, lk_params = get_keywords_lktrack(**kwargs)
     cap = cv2.VideoCapture(fpath)
 
     # Take first frame and find corners in it
@@ -280,7 +308,6 @@ def lk_track(fpath, feature_params, lk_params):
 
     # Create a mask image for drawing purposes
     # mask = np.zeros_like(old_frame)
-
 
     data = list()
     frame_id = 0
@@ -331,8 +358,9 @@ def lk_track(fpath, feature_params, lk_params):
     return data
 
 
-def lk_track_draw(fpath, fpath_ex, feature_params, lk_params):
+def lk_track_draw(fpath, fpath_ex, **kwargs):
 
+    feature_params, lk_params = get_keywords_lktrack(**kwargs)
     cap = cv2.VideoCapture(fpath)
     k = cap.isOpened()
     if k == False:
