@@ -13,30 +13,29 @@ https://stackoverflow.com/questions/41661517/drawing-results-of-calcopticalflowf
 
 def get_keywords_opticalflow(**kwargs):
 
-        pyr_scale = kwargs['_pyr_scale']
-        levels = kwargs['_levels']
-        winsize = kwargs['_winsize']
-        iterations = kwargs['_iterations']
-        poly_n = kwargs['_poly_n']
-        poly_sigma = kwargs['_poly_sigma']
-        flags = kwargs['_flags']
+        pyr_scale = kwargs['_pyr_scale'] if '_pyr_scale' in kwargs else 0.5
+        levels = kwargs['_levels'] if '_levels' in kwargs else 3
+        winsize = kwargs['_winsize'] if '_winsize' in kwargs else 15
+        iterations = kwargs['_iterations'] if '_iterations' in kwargs else 3
+        poly_n = kwargs['_poly_n'] if '_poly_n' in kwargs else 5
+        poly_sigma = kwargs['_poly_sigma'] if '_poly_sigma' in kwargs else 1.2
+        flags = kwargs['_flags'] if '_flags' in kwargs else 0
 
         return pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags
 
 
 def get_keywords_lktrack(**kwargs):
 
-    max_corners = kwargs['_max_corners']
-    quality_level = kwargs['_quality_level']
-    min_distance = kwargs['_min_distance']
-    blocksize = kwargs['_blocksize']
-    win_size = kwargs['_win_size']
-    max_corners = kwargs['_max_corners']
-    max_level = kwargs['_max_level']
-    lk_criteria = kwargs['_lk_criteria']
-    lk_count = kwargs['_lk_count']
-    epsilon = kwargs['_epsilon']
-    # test = kwargs['test']
+    max_corners = kwargs['_max_corners'] if '_max_corners' in kwargs else 100
+    quality_level = kwargs['_quality_level'] if '_quality_level' in kwargs else 0.3
+    min_distance = kwargs['_min_distance'] if '_min_distance' in kwargs else 7.0
+    blocksize = kwargs['_blocksize'] if '_blocksize' in kwargs else 7
+    win_size = kwargs['_win_size'] if '_win_size' in kwargs else 15
+    max_level = kwargs['_max_level'] if '_max_level' in kwargs else 2
+    lk_criteria = kwargs['_lk_criteria'] if '_lk_criteria' in kwargs else cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT
+    lk_count = kwargs['_lk_count'] if '_lk_count' in kwargs else 30
+    epsilon = kwargs['_epsilon'] if '_epsilon' in kwargs else 0.03
+    # test = kwargs['test'] 
     feature_params = dict(maxCorners=max_corners, 
                             qualityLevel=quality_level,
                             minDistance=min_distance,
@@ -98,20 +97,20 @@ def opticalflow_dense_image(fpath_img_prev,\
                                         img_next_gray,\
                                         **kwargs)
     # flow_mag = np.asarray(mag)
-    flow_np = np.asarray(flow).tolist()
+    flow_list = np.asarray(flow).tolist()
 
-    return flow_np
+    return flow_list
 
 
 
 def opticalflow_dense_image_draw_base(img_prev,\
                                       img_next,\
-                                    #   export='org+flow',\
+                                      export='org+flow',\
                                       **kwargs):
     """
     """
 
-    export = kwargs['export']
+    # export = kwargs['export']
     img_prev_gray = cv2.cvtColor(img_prev, cv2.COLOR_BGR2GRAY)
     img_next_gray = cv2.cvtColor(img_next, cv2.COLOR_BGR2GRAY)
     flow = opticalflow_dense_image_base(img_prev_gray,\
@@ -120,7 +119,7 @@ def opticalflow_dense_image_draw_base(img_prev,\
     hsv = np.zeros_like(img_next)
 
     mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
-    hsv[...,0] = ang*180/np.pi/2
+    hsv[..., 0] = ang * 180 / np.pi / 2
     
 
     if export == 'org-flow':
@@ -133,6 +132,7 @@ def opticalflow_dense_image_draw_base(img_prev,\
 
     elif export == 'flow':
         # hsv[...,2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
+        hsv[..., 2] = mag
         img_ret = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
     else:
         img_ret = {}
