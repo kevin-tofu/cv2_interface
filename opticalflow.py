@@ -97,9 +97,10 @@ def opticalflow_dense_image(fpath_img_prev,\
                                         img_next_gray,\
                                         **kwargs)
     # flow_mag = np.asarray(mag)
-    flow_list = np.asarray(flow).tolist()
+    flow_list = np.asarray(flow)
+    flow_list_r = np.round(flow_list, decimals=5).tolist()
 
-    return flow_list
+    return flow_list_r
 
 
 
@@ -128,7 +129,13 @@ def opticalflow_dense_image_draw_base(img_prev,\
         img_ret = cv2.vconcat([rgb, img_next_gray])
 
     elif export == 'org+flow':
-        img_ret = draw_flow(img_next_gray, flow, step=32)
+
+        if "_draw_step" in kwargs:
+            draw_step = kwargs['_draw_step']
+        else:
+            draw_step = 32
+
+        img_ret = draw_flow(img_next_gray, flow, step=draw_step)
 
     elif export == 'flow':
         # hsv[...,2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
@@ -159,19 +166,19 @@ def opticalflow_dense_image_draw(fpath_img_prev: str,\
 
 
 
-def opticalflow_dense_sum_video(fname, **kwargs):
+def opticalflow_dense_sum_video(fpath, **kwargs):
         """
         """
         import math
 
         pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags = get_keywords_opticalflow(**kwargs)
 
-        cap = cv2.VideoCapture(fname)
+        cap = cv2.VideoCapture(fpath)
         # pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags = 0.5, 3, 15, 3, 5, 1.2, 0
 
         k = cap.isOpened()
         if k == False:
-            cap.open(fname)
+            cap.open(fpath)
 
 
         ret, frame1 = cap.read()
@@ -189,9 +196,11 @@ def opticalflow_dense_sum_video(fname, **kwargs):
             flow = cv2.calcOpticalFlowFarneback(prvs, next, None, pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags)
             
             mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
-            flow_mag = np.asarray(mag)
+            flow_mag = np.asarray(mag).astype(np.float64)
+            flow_mag[flow_mag==np.inf] = 0
             flow_mag_sum = float(np.sum(flow_mag))
-            # print(flow_mag_sum, type(flow_mag_sum))
+            flow_mag_sum = round(flow_mag_sum, 3)
+            # print(flow_mag_sum, type(flow_mag_sum), flow_mag.shape, flow_mag.max(), flow_mag.min())
 
             if math.inf == flow_mag_sum:
                 flow_mag_sum = -1
@@ -218,8 +227,41 @@ def opticalflow_dense_sum_video(fname, **kwargs):
         return flow_list
 
 
-def opticalflow_dense_draw(fname: str, \
-                           fname_ex: str, \
+
+
+# def set_audio(path_src, path_img, path_dst):
+def set_audio(path_src, path_dst):
+    """
+    https://kp-ft.com/684
+    https://stackoverflow.com/questions/46864915/python-add-audio-to-video-opencv
+    """
+
+    import os, shutil
+    import moviepy.editor as mp
+    import time
+
+    root_ext_pair = os.path.splitext(path_src)
+    # path_audio = f"{root_ext_pair[0]}-audio.mp3"
+    path_dst_copy = f"{root_ext_pair[0]}-copy.mp4"
+    shutil.copyfile(path_dst, path_dst_copy)
+    time.sleep(0.5)
+
+    # Extract audio from input video.                                                                     
+    clip_input = mp.VideoFileClip(path_src)
+    # clip_input.audio.write_audiofile(path_audio)
+    # Add audio to output video.                                                                          
+    clip = mp.VideoFileClip(path_dst_copy)
+    clip.audio = clip_input.audio
+
+    time.sleep(0.5)
+    clip.write_videofile(path_dst)
+
+    time.sleep(0.5)
+    os.remove(path_dst_copy)
+
+
+def opticalflow_dense_draw(fpath: str, \
+                           fpath_ex: str, \
                            export: str, \
                            **kwargs):
         """
@@ -228,22 +270,24 @@ def opticalflow_dense_draw(fname: str, \
         pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags = get_keywords_opticalflow(**kwargs)
         # export = kwargs['export']
 
-        cap = cv2.VideoCapture(fname)
+        cap = cv2.VideoCapture(fpath)
         k = cap.isOpened()
         if k == False:
-            cap.open(fname)
+            cap.open(fpath)
 
         fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
         if export == 'org-flow':
-            writer = cv2.VideoWriter(fname_ex, fmt, fps, (width, 2*height))
+            writer = cv2.VideoWriter(fpath_ex, fmt, fps, (width, 2*height))
         elif export == 'org+flow':
-            writer = cv2.VideoWriter(fname_ex, fmt, fps, (width, height))
+            writer = cv2.VideoWriter(fpath_ex, fmt, fps, (width, height))
         elif export == 'flow':
-            writer = cv2.VideoWriter(fname_ex, fmt, fps, (width, height))
+            writer = cv2.VideoWriter(fpath_ex, fmt, fps, (width, height))
 
+        # player = MediaPlayer(fpath)
 
         ret, frame1 = cap.read()
         prvs = cv2.cvtColor(frame1,cv2.COLOR_BGR2GRAY)
@@ -251,7 +295,9 @@ def opticalflow_dense_draw(fname: str, \
         hsv[...,1] = 255
 
         # flow_list = list()
-        while(1):
+        # while(1):
+        for i in range(frame_count):
+
             ret, frame2 = cap.read()
             if ret == False:
                 break
@@ -293,6 +339,8 @@ def opticalflow_dense_draw(fname: str, \
         if export in ['org-flow', 'org+flow', 'flow']:
             writer.release()
 
+            set_audio(fpath, fpath_ex)
+            # set_audio2(fpath, fpath_ex)
         
 
 
@@ -330,9 +378,14 @@ def lk_track(fpath, **kwargs):
         if len(good_new) == 0:
             continue
         
-        flow = good_new - good_old
-        data.append(dict(frame=frame_id, flow=flow.tolist(), 
-                            position=good_new.tolist()
+        flow_r = np.round(good_new - good_old, decimals=4)
+        good_new_r = np.round(good_new, decimals=4)
+
+        # print(flow_r)
+        # print(good_new_r)
+
+        data.append(dict(frame=frame_id, flow=flow_r.tolist(), 
+                         position=good_new_r.tolist()
         ))
 
 
