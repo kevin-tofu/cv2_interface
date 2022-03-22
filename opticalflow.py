@@ -135,6 +135,7 @@ def opticalflow_dense_image_draw_base(img_prev,\
         else:
             draw_step = 32
 
+        # print("draw_step: ", draw_step)
         img_ret = draw_flow(img_next_gray, flow, step=draw_step)
 
     elif export == 'flow':
@@ -269,6 +270,11 @@ def opticalflow_dense_draw(fpath: str, \
         
         pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags = get_keywords_opticalflow(**kwargs)
         # export = kwargs['export']
+        if "_draw_step" in kwargs:
+            draw_step = kwargs['_draw_step']
+        else:
+            draw_step = 32
+        # print("draw_step: ", draw_step)
 
         cap = cv2.VideoCapture(fpath)
         k = cap.isOpened()
@@ -317,7 +323,10 @@ def opticalflow_dense_draw(fpath: str, \
                 writer.write(rgb2)
 
             elif export == 'org+flow':
-                rgb2 = draw_flow(frame2, flow, step=32)
+                
+
+                # print(draw_step)
+                rgb2 = draw_flow(frame2, flow, step = draw_step)
                 writer.write(rgb2)
 
             elif export == 'flow':
