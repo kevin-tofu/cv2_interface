@@ -1,6 +1,6 @@
 import numpy as np
 import cv2
-
+import os
 """
 http://labs.eecs.tottori-u.ac.jp/sd/Member/oyamada/OpenCV/html/py_tutorials/py_video/py_lucas_kanade/py_lucas_kanade.html
 https://qiita.com/icoxfog417/items/357e6e495b7a40da14d8
@@ -243,7 +243,7 @@ def set_audio(path_src, path_dst):
 
     root_ext_pair = os.path.splitext(path_src)
     # path_audio = f"{root_ext_pair[0]}-audio.mp3"
-    path_dst_copy = f"{root_ext_pair[0]}-copy.mp4"
+    path_dst_copy = f"{root_ext_pair[0]}-copy{root_ext_pair[1]}"
     shutil.copyfile(path_dst, path_dst_copy)
     time.sleep(0.5)
 
@@ -262,7 +262,7 @@ def set_audio(path_src, path_dst):
 
 
 def opticalflow_dense_draw(fpath: str, \
-                           fpath_ex: str, \
+                           fpath_dst: str, \
                            export: str, \
                            **kwargs):
         """
@@ -285,13 +285,20 @@ def opticalflow_dense_draw(fpath: str, \
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+        
+        # print(fpath_ex)
+        fpath_ex = os.path.splitext(fpath_dst)[-1]
+        if fpath_ex == ".mp4" or fpath_ex == ".MP4":
+            fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+        else:
+            raise ValueError("file extention error")
+
         if export == 'org-flow':
-            writer = cv2.VideoWriter(fpath_ex, fmt, fps, (width, 2*height))
+            writer = cv2.VideoWriter(fpath_dst, fmt, fps, (width, 2*height))
         elif export == 'org+flow':
-            writer = cv2.VideoWriter(fpath_ex, fmt, fps, (width, height))
+            writer = cv2.VideoWriter(fpath_dst, fmt, fps, (width, height))
         elif export == 'flow':
-            writer = cv2.VideoWriter(fpath_ex, fmt, fps, (width, height))
+            writer = cv2.VideoWriter(fpath_dst, fmt, fps, (width, height))
 
         # player = MediaPlayer(fpath)
 
@@ -348,7 +355,7 @@ def opticalflow_dense_draw(fpath: str, \
         if export in ['org-flow', 'org+flow', 'flow']:
             writer.release()
 
-            set_audio(fpath, fpath_ex)
+            set_audio(fpath, fpath_dst)
             # set_audio2(fpath, fpath_ex)
         
 
@@ -420,7 +427,7 @@ def lk_track(fpath, **kwargs):
     return data
 
 
-def lk_track_draw(fpath, fpath_ex, **kwargs):
+def lk_track_draw(fpath, fpath_dst, **kwargs):
 
     feature_params, lk_params = get_keywords_lktrack(**kwargs)
     cap = cv2.VideoCapture(fpath)
@@ -431,9 +438,14 @@ def lk_track_draw(fpath, fpath_ex, **kwargs):
     fps = cap.get(cv2.CAP_PROP_FPS)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+
+    fpath_ex = os.path.splitext(fpath_dst)[-1]
+    if fpath_ex == ".mp4" or fpath_ex == ".MP4":
+        fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+    else:
+        raise ValueError("file extention error")
     
-    writer = cv2.VideoWriter(fpath_ex, fmt, fps, (width, height))
+    writer = cv2.VideoWriter(fpath_dst, fmt, fps, (width, height))
 
     # Create some random colors
     color = np.random.randint(0,255,(100,3))
