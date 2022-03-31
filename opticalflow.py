@@ -13,15 +13,15 @@ https://stackoverflow.com/questions/41661517/drawing-results-of-calcopticalflowf
 
 def get_keywords_opticalflow(**kwargs):
 
-        pyr_scale = kwargs['_pyr_scale'] if '_pyr_scale' in kwargs else 0.5
-        levels = kwargs['_levels'] if '_levels' in kwargs else 3
-        winsize = kwargs['_winsize'] if '_winsize' in kwargs else 15
-        iterations = kwargs['_iterations'] if '_iterations' in kwargs else 3
-        poly_n = kwargs['_poly_n'] if '_poly_n' in kwargs else 5
-        poly_sigma = kwargs['_poly_sigma'] if '_poly_sigma' in kwargs else 1.2
-        flags = kwargs['_flags'] if '_flags' in kwargs else 0
+    pyr_scale = kwargs['_pyr_scale'] if '_pyr_scale' in kwargs else 0.5
+    levels = kwargs['_levels'] if '_levels' in kwargs else 3
+    winsize = kwargs['_winsize'] if '_winsize' in kwargs else 15
+    iterations = kwargs['_iterations'] if '_iterations' in kwargs else 3
+    poly_n = kwargs['_poly_n'] if '_poly_n' in kwargs else 5
+    poly_sigma = kwargs['_poly_sigma'] if '_poly_sigma' in kwargs else 1.2
+    flags = kwargs['_flags'] if '_flags' in kwargs else 0
 
-        return pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags
+    return pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags
 
 
 def get_keywords_lktrack(**kwargs):
@@ -136,7 +136,7 @@ def opticalflow_dense_image_draw_base(img_prev,\
             draw_step = 32
 
         # print("draw_step: ", draw_step)
-        img_ret = draw_flow(img_next_gray, flow, step=draw_step)
+        img_ret = draw_flow(img_next, flow, step=draw_step)
 
     elif export == 'flow':
         # hsv[...,2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
