@@ -276,6 +276,7 @@ def opticalflow_dense_draw(fpath: str, \
             draw_step = 32
         # print("draw_step: ", draw_step)
 
+        # print(f"fpath : {fpath}")
         cap = cv2.VideoCapture(fpath)
         k = cap.isOpened()
         if k == False:
@@ -305,7 +306,7 @@ def opticalflow_dense_draw(fpath: str, \
         ret, frame1 = cap.read()
         prvs = cv2.cvtColor(frame1,cv2.COLOR_BGR2GRAY)
         hsv = np.zeros_like(frame1)
-        hsv[...,1] = 255
+        hsv[..., 1] = 255
 
         # flow_list = list()
         # while(1):
@@ -318,6 +319,8 @@ def opticalflow_dense_draw(fpath: str, \
             next = cv2.cvtColor(frame2, cv2.COLOR_BGR2GRAY)
             flow = cv2.calcOpticalFlowFarneback(prvs, next, None, pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags)
             # flow_list.append(flow.tolist())
+
+            # print(np.sum(frame2))
 
             mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
             hsv[...,0] = ang*180/np.pi/2
@@ -337,6 +340,7 @@ def opticalflow_dense_draw(fpath: str, \
                 writer.write(rgb2)
 
             elif export == 'flow':
+                # print(hsv.shape)
                 # hsv[..., 2] = cv2.normalize(mag, None, 0, 255, cv2.NORM_MINMAX)
                 rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
                 writer.write(rgb)
@@ -353,6 +357,8 @@ def opticalflow_dense_draw(fpath: str, \
 
         cap.release()
         if export in ['org-flow', 'org+flow', 'flow']:
+
+            # print(f"export : {export}")
             writer.release()
 
             set_audio(fpath, fpath_dst)
